@@ -174,6 +174,24 @@ class AsynchronousValueIterationAgent(ValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        INF, NEG_INF = float("inf"), -float("inf")
+
+        # MDP states
+        mdp_states = self.mdp.getStates()
+
+        # Run through iterations
+        for i in range(self.iterations):
+            # copy function defined?
+            curr_state = mdp_states[i % len(mdp_states)]
+
+            # not iterating all actions this time
+            if not self.mdp.isTerminal(curr_state):
+                options_actions = self.mdp.getPossibleActions(curr_state)
+                optimal = max([self.getQValue(curr_state, x)
+                               for x in options_actions])
+
+                # add optimal to the policy
+                self.values[curr_state] = optimal
 
 
 class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
@@ -196,3 +214,76 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
     def runValueIteration(self):
         "*** YOUR CODE HERE ***"
+        # initiliaze empty PQ
+        # Use priority queue from utils for algorithm order
+        hinge = util.PriorityQueue()
+
+        dictPrev = {}
+        mdp_states = self.mdp.getStates()
+
+        # computing the predecssors for all states
+        # For each non-terminal state, do:
+
+        for curr_state in mdp_states:
+            # exit the iteration
+            if self.mdp.isTerminal(curr_state):
+                continue
+
+            options_actions = self.mdp.getPossibleActions(curr_state)
+            for action in options_actions:
+
+                all_transitions = self.mdp.getTransitionStatesAndProbs(
+                    curr_state, action)
+                for new_state, prob in all_transitions:
+
+                    if new_state in dictPrev:
+                        dictPrev[new_state].add(curr_state)
+
+                    else:
+                        dictPrev[new_state] = {curr_state}
+
+        mdp_states = self.mdp.getStates()
+
+        # Find the absolute value of the difference between the current value of s in self.values and the highest Q-value across all possible actions from s (this represents what the value should be); call this number diff. Do NOT update self.values[s] in this step.
+        # Push s into the priority queue with priority -diff (note that this is negative). We use a negative because the priority queue is a min heap, but we want to prioritize updating states that have a higher error.
+        for curr_state in mdp_states:
+            if not self.mdp.isTerminal(curr_state):
+                options_actions = self.mdp.getPossibleActions(curr_state)
+                optimal = max([self.getQValue(curr_state, x)
+                               for x in options_actions])
+                # finding -diff
+                diff = abs(optimal - self.values[curr_state])
+                hinge.update(curr_state, - diff)
+
+        # For iterations
+        #         For iteration in 0, 1, 2, ..., self.iterations - 1, do:
+        # If the priority queue is empty, then terminate.
+        # Pop a state s off the priority queue.
+        # Update s's value (if it is not a terminal state) in self.values.
+        # For each predecessor p of s, do:
+        # Find the absolute value of the difference between the current value of p in self.values and the highest Q-value across all possible actions from p (this represents what the value should be); call this number diff. Do NOT update self.values[p] in this step.
+        # If diff > theta, push p into the priority queue with priority -diff (note that this is negative), as long as it does not already exist in the priority queue with equal or lower priority. As before, we use a negative because the priority queue is a min heap, but we want to prioritize updating states that have a higher error.
+        for i in range(self.iterations):
+            # no processing to do
+            if hinge.isEmpty():
+                break
+
+            curr_state = hinge.pop()
+            if not self.mdp.isTerminal(curr_state):
+                options_actions = self.mdp.getPossibleActions(curr_state)
+                optimal = max([self.getQValue(curr_state, x)
+                               for x in options_actions])
+
+                self.values[curr_state] = optimal
+
+            for prev in dictPrev[curr_state]:
+                if self.mdp.isTerminal(prev):
+                    continue
+
+                options_actions = self.mdp.getPossibleActions(curr_state)
+                optimal = max([self.getQValue(curr_state, x)
+                               for x in options_actions])
+                diff = abs(optimal - self.values[prev])
+                # difference large enough?
+                if diff > self.theta:
+                    hinge.update(prev, -diff)

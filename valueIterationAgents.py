@@ -223,6 +223,7 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
 
         # computing the predecssors for all states
         # For each non-terminal state, do:
+        # breaking in 2 stages
 
         for curr_state in mdp_states:
             # exit the iteration
@@ -280,10 +281,10 @@ class PrioritizedSweepingValueIterationAgent(AsynchronousValueIterationAgent):
                 if self.mdp.isTerminal(prev):
                     continue
 
-                options_actions = self.mdp.getPossibleActions(curr_state)
-                optimal = max([self.getQValue(curr_state, x)
+                options_actions = self.mdp.getPossibleActions(prev)
+                optimal = max([self.getQValue(prev, x)
                                for x in options_actions])
+                # finding -diff
                 diff = abs(optimal - self.values[prev])
-                # difference large enough?
                 if diff > self.theta:
                     hinge.update(prev, -diff)
